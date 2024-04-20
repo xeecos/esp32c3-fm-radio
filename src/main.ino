@@ -16,6 +16,8 @@ RDA5807 rx;
 void setup(void) 
 {
 //   Serial.begin(115200);
+    pinMode(PIN_ADC, INPUT);
+    analogRead(PIN_ADC);
     Wire.begin(PIN_SDA, PIN_SCL, 100000);
     lcd.init();
     lcd.fillScreen(BLUE);
