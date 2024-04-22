@@ -101,8 +101,7 @@ class ST7735
  public:
   ST7735(int8_t DC, int8_t RST, int8_t CS = -1);
 
-  void init();
-  void begin() { init(); }
+  void begin();
   void setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
   void pushColor(uint16_t color);
   void fillScreen(uint16_t color=BLACK);

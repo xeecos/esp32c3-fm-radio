@@ -1,37 +1,88 @@
-
-// #include <Adafruit_GFX.h>    // Core graphics library
-// #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
-// #include <SPI.h>
-// #include <config.h>
-// #define TFT_CS          -1
-// #define TFT_RST         PIN_RST
-// #define TFT_DC          PIN_DC
-// Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, PIN_SDATA, PIN_SCLK, TFT_RST);
-
-//   tft.initR(INITR_GREENTAB);
-// }
-// void drawImage(uint16_t*bmp)
-// {
-//     tft.startWrite();
-//     tft.setAddrWindow(0, 0, 128, 64);
-//     tft.writePixels(bmp, 128*64, true, false);
-//     tft.endWrite();
-// }
-// void loop() 
-// {
-//     // drawImage(bmp1);
-//     // delay(1000);
-//     // drawImage(bmp2);
-//     // delay(1000);
-//     // tft.fillScreen(ST7735_RED);
-//     // delay(1000);
-// }
 #include <Arduino.h>
 #include <config.h>
 #include <st7735.h>
+#include "driver/adc.h"
+
+#define TIMES              128
+
 ST7735 lcd = ST7735(PIN_DC, PIN_RST, -1);
 uint16_t *bmp1;
 uint16_t *bmp2;
+
+uint32_t idx = 0;
+uint16_t result[TIMES] = {0};
+void readADC(void*params)
+{
+    while(1)
+    {
+        idx++;
+        if(idx>=TIMES)
+        {
+            idx = 0;
+        }
+        result[idx] = analogRead(PIN_ADC);
+        delayMicroseconds(5);
+    }
+}
+
+template <typename T> static inline void swap(T& a, T& b) { T t = a; a = b; b = t; }
+void drawLine(uint16_t* bmp, int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color)
+{
+    if(y0 == y1)
+    {
+        for (; x0 <= x1; x0++) {
+            bmp[y0*128+x0] = color;
+        }
+    }
+    else if(x0 == x1)
+    {
+        if(y0>y1)
+        {
+            swap(y0, y1);
+            swap(x0, x1);
+        }
+        for (; y0 <= y1; y0++) {
+            bmp[y0*128+x0] = color;
+        }
+    }
+    else
+    {
+        int16_t steep = abs(y1 - y0) > abs(x1 - x0);
+        if (steep) {
+            swap(x0, y0);
+            swap(x1, y1);
+        }
+        if (x0 > x1) {
+            swap(x0, x1);
+            swap(y0, y1);
+        }
+        int16_t dx, dy;
+        dx = x1 - x0;
+        dy = abs(y1 - y0);
+
+        int16_t err = dx / 2;
+        int16_t ystep;
+
+        if (y0 < y1) {
+            ystep = 1;
+        } else {
+            ystep = -1;
+        }
+
+        for (; x0 <= x1; x0++) {
+            if (steep) {
+                bmp[x0*128+y0] = color;
+            } else {
+                bmp[y0*128+x0] = color;
+            }
+            err -= dy;
+            if (err < 0) {
+                y0 += ystep;
+                err += dx;
+            }
+        }
+    }
+}
 void setup(void) 
 {
     bmp1 = (uint16_t*)malloc(128*64*2);
@@ -47,18 +98,64 @@ void setup(void)
     pinMode(PIN_PWM, OUTPUT);
     digitalWrite(PIN_PWM, HIGH);
     lcd.begin();
+    static uint8_t ucParameterToPass;
+    TaskHandle_t xHandle = NULL;
+    xTaskCreate( readADC, "readADC", 1024, &ucParameterToPass, tskIDLE_PRIORITY, &xHandle );
 }
+
 void loop()
 {
+
+    // adc_digi_read_bytes((uint8_t*)result, TIMES, &ret_num, ADC_MAX_DELAY);
     // USBSerial.printf("adc:%d\n",analogRead(PIN_ADC));
     // digitalWrite(PIN_LED, HIGH);
-    
+    memset(bmp1, 0 ,128*64*2);
+    for(int i = 0; i < TIMES; i++)
+    {
+        int ii = idx+i;
+        if(ii>=TIMES)
+        {
+            ii -= TIMES;
+        }
+        if(result[ii] > 0)
+        {
+            int x0 = ii;
+            int y0 = (64.0-result[ii]/2048.0*64.0-6.0)*8.0;
+            if(y0<0)y0=0;
+            if(y0>63)y0=63;
+            if(ii>0)
+            {
+                int iii = idx+i-1;
+                if(iii>=TIMES)
+                {
+                    iii -= TIMES;
+                }
+                if(iii<0)
+                {
+                    iii += TIMES;
+                }
+                int x1 = iii;
+                int y1 = (64.0-result[iii]/2048.0*64.0-6.0)*8.0;
+                if(y1<0)y1=0;
+                if(y1>63)y1=63;
+                drawLine(bmp1, x1, y1, x0, y0, 0xffff);
+            }
+            else
+            {
+                int iidx = (y0*128+x0);
+                bmp1[iidx] = 0xffff;
+            }
+        }
+    }    
+    // drawLine(bmp1, 64, 0, 32, 63, 0xffff);
+    // drawLine(bmp1, 64, 0, 96, 63, 0xffff);
+    // drawLine(bmp1, 0, 32, 128, 32, 0xffff);
+    // drawLine(bmp1, 64, 0, 64, 63, 0xffff);
+    // drawLine(bmp1,  32, 0,64, 63, 0xffff);
+    // drawLine(bmp1,  96, 0,64, 63, 0xffff);
     lcd.drawImage(0,0,128,64,bmp1);
-    delay(1000);
-    lcd.drawImage(0,0,128,64,bmp2);
-    delay(1000);
-    lcd.fillRect(0, 0, 128, 64, GREEN);
-    delay(1000);
+    delay(30);
+
     // digitalWrite(PIN_LED, LOW);
     // delayMicroseconds(100);
 }

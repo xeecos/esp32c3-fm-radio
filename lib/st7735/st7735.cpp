@@ -106,12 +106,12 @@ ST7735::ST7735(int8_t dc, int8_t rst, int8_t cs)
 }
 
 // ----------------------------------------------------------
-void ST7735::init() 
+void ST7735::begin() 
 {
     pinMode(dcPin, OUTPUT);
 
     SPI.begin(PIN_SCLK, 21, PIN_SDATA, -1);
-    spiSettings = SPISettings(50000000, MSBFIRST, SPI_MODE0);  // 8000000 gives max speed on AVR 16MHz
+    spiSettings = SPISettings(40000000, MSBFIRST, SPI_MODE0);  // 8000000 gives max speed on AVR 16MHz
     if(rstPin != -1) {
         pinMode(rstPin, OUTPUT);
         digitalWrite(rstPin, HIGH);
