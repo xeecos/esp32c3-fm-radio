@@ -1,46 +1,7 @@
-/*
-
-        FFT library
-        Copyright (C) 2010 Didier Longueville
-        Copyright (C) 2014 Enrique Condes
-        Copyright (C) 2020 Bim Overbohm (template, speed improvements)
-
-        This program is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
-
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
-
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-*/
-
 #ifndef ArduinoFFT_h /* Prevent loading library twice */
 #define ArduinoFFT_h
-#ifdef ARDUINO
-#if ARDUINO >= 100
-#include "Arduino.h"
-#else
-#include "WProgram.h" /* This is where the standard Arduino code lies */
-#endif
-#else
-#include <stdio.h>
-#include <stdlib.h>
 
-#ifdef __AVR__
-#include <avr/io.h>
-#include <avr/pgmspace.h>
-#endif
-#include "defs.h"
-#include "types.h"
-#include <math.h>
-#include <stdint.h>
-#endif
+#include "Arduino.h"
 #include "enumsFFT.h"
 
 // This definition uses a low-precision square root approximation instead of the

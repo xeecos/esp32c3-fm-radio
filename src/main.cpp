@@ -6,9 +6,9 @@
 
 #define TIMES              128
 
-const uint16_t samples = TIMES; //This value MUST ALWAYS be a power of 2
-const double samplingFrequency = 22000;
-const uint8_t amplitude = 100;
+const uint16_t samples = 128; //This value MUST ALWAYS be a power of 2
+const double samplingFrequency = 22100;
+
 
 /*
 These are the input and output vectors
@@ -30,17 +30,17 @@ void readADC(void*params)
 {
     while(1)
     {
-        idx++;
-        if(idx>=TIMES)
+        if(idx>=samples)
         {
-            // FFT.windowing(FFTWindow::Hamming, FFTDirection::Forward);
+            // FFT.windowing(FFTWindow::Blackman, FFTDirection::Forward);
             FFT.compute(FFTDirection::Forward);
             FFT.complexToMagnitude();
-            delay(15);
             idx = 0;
+            delay(20);
         }
         vReal[idx] = analogRead(PIN_ADC);
         vImag[idx] = 0;
+        idx++;
         delayMicroseconds(5);
     }
 }
@@ -116,6 +116,7 @@ void setup(void)
     pinMode(PIN_LED, OUTPUT);
     pinMode(PIN_ADC, INPUT);
     pinMode(PIN_PWM, OUTPUT);
+    digitalWrite(PIN_LED, HIGH);
     digitalWrite(PIN_PWM, HIGH);
     lcd.begin();
     
@@ -130,19 +131,14 @@ void loop()
     // adc_digi_read_bytes((uint8_t*)result, TIMES, &ret_num, ADC_MAX_DELAY);
     // USBSerial.printf("adc:%d\n",analogRead(PIN_ADC));
     // digitalWrite(PIN_LED, HIGH);
-    memset(bmp1, 0 ,128*64*2);
-    if(idx>=TIMES)
+    if(idx==0)
     {
-        idx = 0;
+        memset(bmp1, 0 ,128*64*2);
         for(int i = 0; i < TIMES; i++)
         {
             // USBSerial.printf("adc:%f\n",vReal[i]);
 
-            int ii = idx+i;
-            if(ii>=TIMES)
-            {
-                ii -= TIMES;
-            }
+            int ii = i;
             if(vReal[ii] > 0)
             {
                 int x0 = ii;
@@ -151,15 +147,7 @@ void loop()
                 if(y0>63)y0=63;
                 if(ii>0)
                 {
-                    int iii = idx+i-1;
-                    if(iii>=TIMES)
-                    {
-                        iii -= TIMES;
-                    }
-                    if(iii<0)
-                    {
-                        iii += TIMES;
-                    }
+                    int iii = i-1;
                     int x1 = iii;
                     int y1 = (0.0+vReal[iii]/2048*64.0-0.0)*0.5;
                     if(y1<0)y1=0;
@@ -168,7 +156,7 @@ void loop()
                     // x0 -= 64;
                     // if(x1<0)x1+=128;
                     // if(x0<0)x0+=128;
-                    drawLine(bmp1, x1, y1, x0, y0, 0xffff);
+                    drawLine(bmp1, x1, y1, x1, 0, lcd.color565(128-iii,64+iii,iii));
                 }
                 else
                 {
