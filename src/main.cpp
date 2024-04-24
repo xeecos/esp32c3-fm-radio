@@ -2,8 +2,23 @@
 #include <config.h>
 #include <st7735.h>
 #include "driver/adc.h"
+#include "arduinoFFT.h"
 
 #define TIMES              128
+
+const uint16_t samples = TIMES; //This value MUST ALWAYS be a power of 2
+const double samplingFrequency = 22000;
+const uint8_t amplitude = 100;
+
+/*
+These are the input and output vectors
+Input vectors receive computed results from FFT
+*/
+double vReal[samples];
+double vImag[samples];
+
+/* Create FFT object */
+ArduinoFFT<double> FFT = ArduinoFFT<double>(vReal, vImag, samples, samplingFrequency);
 
 ST7735 lcd = ST7735(PIN_DC, PIN_RST, -1);
 uint16_t *bmp1;
@@ -18,9 +33,14 @@ void readADC(void*params)
         idx++;
         if(idx>=TIMES)
         {
+            // FFT.windowing(FFTWindow::Hamming, FFTDirection::Forward);
+            FFT.compute(FFTDirection::Forward);
+            FFT.complexToMagnitude();
+            delay(15);
             idx = 0;
         }
-        result[idx] = analogRead(PIN_ADC);
+        vReal[idx] = analogRead(PIN_ADC);
+        vImag[idx] = 0;
         delayMicroseconds(5);
     }
 }
@@ -98,6 +118,7 @@ void setup(void)
     pinMode(PIN_PWM, OUTPUT);
     digitalWrite(PIN_PWM, HIGH);
     lcd.begin();
+    
     static uint8_t ucParameterToPass;
     TaskHandle_t xHandle = NULL;
     xTaskCreate( readADC, "readADC", 1024, &ucParameterToPass, tskIDLE_PRIORITY, &xHandle );
@@ -110,43 +131,49 @@ void loop()
     // USBSerial.printf("adc:%d\n",analogRead(PIN_ADC));
     // digitalWrite(PIN_LED, HIGH);
     memset(bmp1, 0 ,128*64*2);
-    for(int i = 0; i < TIMES; i++)
+    if(idx>=TIMES)
     {
-        int ii = idx+i;
-        if(ii>=TIMES)
+        idx = 0;
+        for(int i = 0; i < TIMES; i++)
         {
-            ii -= TIMES;
-        }
-        if(result[ii] > 0)
-        {
-            int x0 = ii;
-            int y0 = (64.0-result[ii]/2048.0*64.0-6.0)*8.0;
-            if(y0<0)y0=0;
-            if(y0>63)y0=63;
-            if(ii>0)
+            // USBSerial.printf("adc:%f\n",vReal[i]);
+
+            int ii = idx+i;
+            if(ii>=TIMES)
             {
-                int iii = idx+i-1;
-                if(iii>=TIMES)
-                {
-                    iii -= TIMES;
-                }
-                if(iii<0)
-                {
-                    iii += TIMES;
-                }
-                int x1 = iii;
-                int y1 = (64.0-result[iii]/2048.0*64.0-6.0)*8.0;
-                if(y1<0)y1=0;
-                if(y1>63)y1=63;
-                drawLine(bmp1, x1, y1, x0, y0, 0xffff);
+                ii -= TIMES;
             }
-            else
+            if(vReal[ii] > 0)
             {
-                int iidx = (y0*128+x0);
-                bmp1[iidx] = 0xffff;
+                int x0 = ii;
+                int y0 = (0.0+vReal[ii]/2048*64.0-0.0)*1;
+                if(y0<0)y0=0;
+                if(y0>63)y0=63;
+                if(ii>0)
+                {
+                    int iii = idx+i-1;
+                    if(iii>=TIMES)
+                    {
+                        iii -= TIMES;
+                    }
+                    if(iii<0)
+                    {
+                        iii += TIMES;
+                    }
+                    int x1 = iii;
+                    int y1 = (0.0+vReal[iii]/2048*64.0-0.0)*1;
+                    if(y1<0)y1=0;
+                    if(y1>63)y1=63;
+                    drawLine(bmp1, x1, y1, x0, y0, 0xffff);
+                }
+                else
+                {
+                    int iidx = (y0*128+x0);
+                    bmp1[iidx] = 0xffff;
+                }
             }
-        }
-    }    
+        }    
+    }
     // drawLine(bmp1, 64, 0, 32, 63, 0xffff);
     // drawLine(bmp1, 64, 0, 96, 63, 0xffff);
     // drawLine(bmp1, 0, 32, 128, 32, 0xffff);
