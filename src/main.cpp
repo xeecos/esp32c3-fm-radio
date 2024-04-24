@@ -146,7 +146,7 @@ void loop()
             if(vReal[ii] > 0)
             {
                 int x0 = ii;
-                int y0 = (0.0+vReal[ii]/2048*64.0-0.0)*1;
+                int y0 = (0.0+vReal[ii]/2048*64.0-0.0)*0.5;
                 if(y0<0)y0=0;
                 if(y0>63)y0=63;
                 if(ii>0)
@@ -161,9 +161,13 @@ void loop()
                         iii += TIMES;
                     }
                     int x1 = iii;
-                    int y1 = (0.0+vReal[iii]/2048*64.0-0.0)*1;
+                    int y1 = (0.0+vReal[iii]/2048*64.0-0.0)*0.5;
                     if(y1<0)y1=0;
                     if(y1>63)y1=63;
+                    // x1 -= 64;
+                    // x0 -= 64;
+                    // if(x1<0)x1+=128;
+                    // if(x0<0)x0+=128;
                     drawLine(bmp1, x1, y1, x0, y0, 0xffff);
                 }
                 else
