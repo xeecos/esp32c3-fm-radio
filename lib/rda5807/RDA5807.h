@@ -203,7 +203,7 @@ typedef union
  *
  * | BAND   | Description                                         |
  * | ------ | --------------------------------------------------  |
- * |  0     | Frequency = Channel Spacing (kHz) x CHAN+ 87.0 MHz  |
+ * |  0     | Frequency = Channel Spacing (kHz) x CHAN + 87.0 MHz |
  * | 1 or 2 | Frequency = Channel Spacing (kHz) x CHAN + 76.0 MHz |
  * | 3      | Frequency = Channel Spacing (kHz) x CHAN + 65.0 MHz |
  * IMPORTANT: CHAN is updated after a seek operation.

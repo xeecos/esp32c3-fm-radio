@@ -3,6 +3,10 @@
 #include <st7735.h>
 #include "driver/adc.h"
 #include "arduinoFFT.h"
+#include <Wire.h>
+#include <RDA5807.h> 
+// #define RDA_INIT_VOL    3             // volume on system start (0..15)
+// #define RDA_INIT_FREQ   97.10        // channel frequency on system start
 
 #define TIMES              128
 
@@ -19,13 +23,14 @@ double vImag[samples];
 
 /* Create FFT object */
 ArduinoFFT<double> FFT = ArduinoFFT<double>(vReal, vImag, samples, samplingFrequency);
-
 ST7735 lcd = ST7735(PIN_DC, PIN_RST, -1);
+RDA5807 rx;
 uint16_t *bmp1;
 uint16_t *bmp2;
 
 uint32_t idx = 0;
 uint16_t result[TIMES] = {0};
+
 void readADC(void*params)
 {
     while(1)
@@ -103,6 +108,8 @@ void drawLine(uint16_t* bmp, int16_t x0, int16_t y0, int16_t x1, int16_t y1, uin
         }
     }
 }
+int fidx = 0;
+int list[6] = {8980,9420,9710,9910,10570,10620};
 void setup(void) 
 {
     bmp1 = (uint16_t*)malloc(128*64*2);
@@ -115,22 +122,75 @@ void setup(void)
     USBSerial.begin(115200);
     pinMode(PIN_LED, OUTPUT);
     pinMode(PIN_ADC, INPUT);
+    pinMode(PIN_KEY1, INPUT_PULLUP);
+    pinMode(PIN_KEY2, INPUT);
     pinMode(PIN_PWM, OUTPUT);
     digitalWrite(PIN_LED, HIGH);
     digitalWrite(PIN_PWM, HIGH);
     lcd.begin();
+    ledcSetup(0, 32768, 8);
+    ledcAttachPin(PIN_LED, 0);
+    ledcWrite(0, 128);
+    Wire.begin(PIN_SDA, PIN_SCL, 100000);
+
+    rx.setup(CLOCK_32K, OSCILLATOR_TYPE_PASSIVE); // Starts the receiver with default parameters
     
+    // while(1)
+    {
+        USBSerial.printf("id:%x\n",rx.getDeviceId());
+        delay(1000);
+    }
+    // rx.setRDS(true);
+    // rx.setRdsFifo(true);
+    rx.setMono(false);
+    rx.setVolume(2);
+    rx.setBand(RDA_FM_BAND_WORLD);
+    // rx.setAFC(true);
+    // rx.setChannel(187);
+    rx.setFrequency(8980); // Tunes in 97.1 MHz  - Switch to your local favorite station
+
+    // rx.setSeekThreshold(10);
+    // rx.seek(1,0);
+    // rx.setVolumeUp();
     static uint8_t ucParameterToPass;
     TaskHandle_t xHandle = NULL;
     xTaskCreate( readADC, "readADC", 1024, &ucParameterToPass, tskIDLE_PRIORITY, &xHandle );
 }
-
+long now = 0;
+int key1 = 1;
+int key2 = 1;
 void loop()
 {
 
     // adc_digi_read_bytes((uint8_t*)result, TIMES, &ret_num, ADC_MAX_DELAY);
     // USBSerial.printf("adc:%d\n",analogRead(PIN_ADC));
     // digitalWrite(PIN_LED, HIGH);
+    if(millis()-now>1000){
+        now = millis();
+        USBSerial.printf("freq:%d\n",rx.getRealFrequency());//,digitalRead(PIN_KEY1),digitalRead(PIN_KEY2));
+    }
+    if(key1!=digitalRead(PIN_KEY1))
+    {
+        key1 = digitalRead(PIN_KEY1);
+        if(key1==0)
+        {
+            int freq = rx.getFrequency();
+            fidx-=1;
+            if(fidx<0)fidx=5;
+            rx.setFrequency(list[fidx]);
+        }
+    }
+    if(key2!=digitalRead(PIN_KEY2))
+    {
+        key2 = digitalRead(PIN_KEY2);
+        if(key2==0)
+        {
+            int freq = rx.getFrequency();
+            fidx+=1;
+            if(fidx>5)fidx=0;
+            rx.setFrequency(list[fidx]);
+        }
+    }
     if(idx==0)
     {
         memset(bmp1, 0 ,128*64*2);
@@ -178,7 +238,6 @@ void loop()
     // digitalWrite(PIN_LED, LOW);
     // delayMicroseconds(100);
 }
-// #include <RDA5807.h> 
 // #include <AHTxx.h> 
 
 // #define SCR_WD   128
@@ -187,19 +246,16 @@ void loop()
 
 // AHTxx aht21(AHTXX_ADDRESS_X38, AHT2x_SENSOR); //sensor address, sensor type
 // 
-// RDA5807 rx; 
+// 
 
 // void setup(void) 
 // {
 // //   Serial.begin(115200);
 //     pinMode(PIN_ADC, INPUT);
 //     analogRead(PIN_ADC);
-//     Wire.begin(PIN_SDA, PIN_SCL, 100000);
     
 //     pinMode(PIN_KEY1, INPUT_PULLUP); // Arduino pin 4 - Seek station down
 //     pinMode(PIN_KEY2, INPUT_PULLUP); // Arduino pin 5 - Seek station up
-//     rx.setup(); // Starts the receiver with default parameters
-//     rx.setFrequency(10390); // Tunes in 103.9 MHz  - Switch to your local favorite station
 
 //     while (aht21.begin() != true)
 //     {

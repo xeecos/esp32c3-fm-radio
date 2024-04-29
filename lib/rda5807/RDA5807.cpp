@@ -156,11 +156,14 @@ void RDA5807::setRegister(uint8_t reg, uint16_t value)
     if (reg > 8)
         return; // Maybe not necessary.
     Wire.beginTransmission(this->deviceAddressDirectAccess);
+    USBSerial.println(1);
     Wire.write(reg);
     aux.raw = value;
     Wire.write(aux.refined.highByte);
     Wire.write(aux.refined.lowByte);
+    USBSerial.println(2);
     Wire.endTransmission();
+    USBSerial.println(3);
     shadowRegisters[reg] = aux.raw; // Updates the shadowRegisters element
     delayMicroseconds(3000);        // Check
 }
@@ -201,7 +204,7 @@ void RDA5807::powerUp()
     reg02->refined.CLK_MODE = this->clockFrequency;
     reg02->refined.RCLK_DIRECT_IN = this->oscillatorType;
     reg02->refined.NON_CALIBRATE = this->rlckNoCalibrate;
-    reg02->refined.MONO = 1;  // Force mono
+    reg02->refined.MONO = 0;  // Force mono
     reg02->refined.DMUTE = 1; // Normal operation
     reg02->refined.DHIZ = 1;  // Normal operation
     reg02->refined.ENABLE = 1;
@@ -370,6 +373,7 @@ void RDA5807::setChannel(uint16_t channel)
 void RDA5807::setFrequency(uint16_t frequency)
 {
     uint16_t channel = (frequency - this->startBand[currentFMBand]) / (this->fmSpace[this->currentFMSpace]);
+    USBSerial.printf("channel:%d\n",channel);
     setChannel(channel);
     this->currentFrequency = frequency;
 }
